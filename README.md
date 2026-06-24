@@ -35,9 +35,19 @@ Leave it running alongside the game; stop it with Ctrl-C or by closing the windo
 
 ---
 
-## Run from source (if you have Python)
+## Run from source
 
-Requires Python 3 with `requests` and `openpyxl`:
+**With [uv](https://docs.astral.sh/uv/) (simplest - nothing to install first).** The script
+declares its own dependencies inline (PEP 723), so uv fetches them into an isolated environment and
+runs it - no venv, no `pip install`:
+
+```
+uv run wsr_financials.py
+uv run wsr_financials.py --watch
+uv run wsr_financials.py --symbols RELI,IMD
+```
+
+**With pip.** Python 3 plus `requests` and `openpyxl`:
 
 ```
 pip install requests openpyxl

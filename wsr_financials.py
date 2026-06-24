@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["requests", "openpyxl"]
+# ///
 """wsr_financials.py - export Wall $treet Raider balance sheets + cash flow statements to Excel.
 
 Reads each entity's financials live over the game's local REST bridge and writes a workbook
