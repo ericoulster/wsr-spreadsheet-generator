@@ -1,0 +1,26 @@
+name: build-exe
+
+# Builds the standalone Windows wsr_financials.exe on a Windows runner, so you can
+# produce a distributable .exe without owning a Windows machine. Trigger it manually
+# from the Actions tab (workflow_dispatch) or by pushing a v* tag; download the .exe
+# from the run's Artifacts. (Only relevant if you host this repo on GitHub.)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pyinstaller requests openpyxl
+      - run: python -m PyInstaller --onefile --name wsr_financials wsr_financials.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wsr_financials-windows
+          path: dist/wsr_financials.exe

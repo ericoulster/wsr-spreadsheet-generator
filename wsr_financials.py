@@ -54,6 +54,13 @@ def _find_runtime():
     return None
 
 
+def _program_dir():
+    """Folder the program lives in - next to the .exe when frozen, else next to this script."""
+    if getattr(sys, "frozen", False):  # PyInstaller one-file build
+        return pathlib.Path(sys.executable).resolve().parent
+    return pathlib.Path(__file__).resolve().parent
+
+
 class Bridge:
     """Minimal REST client for the WSR engine: gamestate + set_view_asset, with port re-read."""
 
@@ -266,20 +273,8 @@ def write_csv(folder, entities, summary):
 
 # ----------------------------- main -----------------------------
 
-def main():
-    ap = argparse.ArgumentParser(description="Export WSR balance sheets + cash flow statements to Excel.")
-    ap.add_argument("--out-dir", required=True, help="folder to write into (created if missing)")
-    ap.add_argument("--symbols", default=None, help="comma-separated tickers (overrides scope to just these)")
-    ap.add_argument("--all", action="store_true", help="you + every company in the game (slow)")
-    ap.add_argument("--controlled-only", action="store_true", help="only the companies you control")
-    ap.add_argument("--player-only", action="store_true", help="only your personal statement")
-    ap.add_argument("--overwrite", action="store_true", help="single rolling file instead of dated-per-month")
-    ap.add_argument("--settle", type=float, default=0.3, help="per-entity read delay, seconds")
-    ap.add_argument("--runtime", default=None, help="path to the game's runtime.json (auto-found by default)")
-    ap.add_argument("--port", type=int, default=None, help="bridge REST port (bypass runtime.json)")
-    a = ap.parse_args()
-
-    b = Bridge(runtime=a.runtime, port=a.port)
+def export_once(b, a, out_dir):
+    """Read the live financials and write one workbook (or CSV set). Returns the game-month string."""
     g = b.gamestate()
     yr, mo = g.get("currentYear"), g.get("currentMonth")
     date = f"{yr}-{int(mo):02d}" if yr and mo else "unknown"
@@ -326,18 +321,81 @@ def main():
 
     b.set_view(2)  # restore the view to the player
 
-    os.makedirs(a.out_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     stamp = "" if a.overwrite else f"_{date}"
     try:
         import openpyxl  # noqa: F401
-        path = os.path.join(a.out_dir, f"wsr_financials{stamp}.xlsx")
+        path = os.path.join(out_dir, f"wsr_financials{stamp}.xlsx")
         write_xlsx(path, entities, summary)
-        print(f"wrote {path}  ({len(entities)} entity sheets + Summary)")
+        print(f"wrote {path}  ({len(entities)} entity sheets + Summary)", flush=True)
     except ImportError:
-        folder = os.path.join(a.out_dir, f"wsr_financials{stamp}")
+        folder = os.path.join(out_dir, f"wsr_financials{stamp}")
         write_csv(folder, entities, summary)
         print(f"openpyxl not installed -> wrote CSVs to {folder}/  "
-              f"({len(entities)} files + summary.csv). `pip install openpyxl` for a single .xlsx workbook.")
+              f"({len(entities)} files + summary.csv). `pip install openpyxl` for a single .xlsx workbook.",
+              flush=True)
+    return date
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Export WSR balance sheets + cash flow statements to Excel.")
+    ap.add_argument("--out-dir", default=None,
+                    help="folder to write into (default: a 'WSR_Statements' folder next to this program)")
+    ap.add_argument("--symbols", default=None, help="comma-separated tickers (overrides scope to just these)")
+    ap.add_argument("--all", action="store_true", help="you + every company in the game (slow)")
+    ap.add_argument("--controlled-only", action="store_true", help="only the companies you control")
+    ap.add_argument("--player-only", action="store_true", help="only your personal statement")
+    ap.add_argument("--overwrite", action="store_true", help="single rolling file instead of dated-per-month")
+    ap.add_argument("--watch", action="store_true",
+                    help="keep running and auto-export each time the game month advances")
+    ap.add_argument("--interval", type=float, default=30.0, help="--watch poll interval, seconds")
+    ap.add_argument("--settle", type=float, default=0.3, help="per-entity read delay, seconds")
+    ap.add_argument("--no-pause", action="store_true", help="do not wait for a keypress when finished")
+    ap.add_argument("--runtime", default=None, help="path to the game's runtime.json (auto-found by default)")
+    ap.add_argument("--port", type=int, default=None, help="bridge REST port (bypass runtime.json)")
+    a = ap.parse_args()
+
+    interactive = len(sys.argv) == 1  # launched with no flags (e.g. double-clicked) -> friendly mode
+    out_dir = a.out_dir or str(_program_dir() / "WSR_Statements")
+
+    def pause():
+        if interactive and not a.no_pause:
+            try:
+                input("\nPress Enter to close...")
+            except EOFError:
+                pass
+
+    ok = False
+    try:
+        b = Bridge(runtime=a.runtime, port=a.port)
+        if a.watch:
+            print(f"Watching for game-month changes; writing to {out_dir}  (Ctrl-C to stop)", flush=True)
+            last = None
+            while True:
+                try:
+                    g = b.gamestate()
+                    yr, mo = g.get("currentYear"), g.get("currentMonth")
+                    date = f"{yr}-{int(mo):02d}" if yr and mo else None
+                    if date and date != last:
+                        last = export_once(b, a, out_dir)
+                except requests.RequestException as e:
+                    print(f"  (game not reachable right now: {e}; will retry)", flush=True)
+                time.sleep(a.interval)
+        else:
+            export_once(b, a, out_dir)
+        ok = True
+    except KeyboardInterrupt:
+        print("\nstopped.")
+        ok = True
+    except SystemExit as e:
+        msg = e.code if isinstance(e.code, str) else "Could not start (is Wall Street Raider running?)."
+        print(f"\n{msg}", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001 - last-resort friendly message for non-dev users
+        print(f"\nERROR: {e}\nMake sure Wall Street Raider is running, then try again.", file=sys.stderr)
+
+    pause()
+    if not ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
