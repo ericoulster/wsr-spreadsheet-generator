@@ -1,4 +1,4 @@
-# WSR Financials Export
+# WSR Spreadsheet Generator
 
 A small standalone tool that exports **Wall $treet Raider** balance sheets and cash flow
 statements to Excel, read live from the game's local bridge while you play. It modifies no game
@@ -12,8 +12,9 @@ By default it exports **you (the player) plus every company you control**, into 
 
 ## Quick start - no setup (recommended for most people)
 
-1. Get **`wsr_financials.exe`** (a single file - someone builds it once with `build.bat`, or you
-   download it from the project's releases). No Python, no install.
+1. Get **`wsr_financials.exe`** - a single file, no Python and no install. It isn't checked into
+   the repo; someone builds it once (see [Build the .exe](#build-the-exe-yourself-to-share-with-non-developers))
+   and shares it, or you download it from the repo's GitHub **Actions** artifacts / a Release.
 2. Start **Wall $treet Raider** and load your game.
 3. **Double-click `wsr_financials.exe`.** A small window opens, writes your statements, and says
    where they went.
@@ -78,15 +79,15 @@ it.) Without `openpyxl` it still works - it writes one **CSV** per entity instea
 
 ---
 
-## Build the `.exe` yourself (to share with non-developers)
+## Build the .exe yourself (to share with non-developers)
 
 The `.exe` is what makes this usable by people who don't have Python. Two ways to produce it:
 
 - **On a Windows machine with Python:** double-click **`build.bat`** (or run it from a prompt). It
   installs PyInstaller and produces **`dist\wsr_financials.exe`**. Share that one file.
-- **Without a Windows machine:** push this repo to GitHub and run the **build-exe** workflow
-  (Actions tab -> Run workflow, or push a `v*` tag). It builds the `.exe` on a Windows runner;
-  download it from the run's Artifacts. See `.github/workflows/build-exe.yml`.
+- **Without a Windows machine:** run the **build-exe** GitHub Actions workflow (Actions tab ->
+  Run workflow, or push a `v*` tag). It builds the `.exe` on a Windows runner; download it from the
+  run's Artifacts. See `.github/workflows/build-exe.yml`.
 
 ---
 
@@ -104,3 +105,13 @@ deposits, not just interest-bearing debt (which is shown separately). All figure
   game only opens while it's running. Start the game, load a save, then run the tool.
 - **Bridge not found** - if auto-detection fails, pass `--runtime` pointing at the game's
   `runtime.json`, or `--port` with the REST port the engine is listening on.
+
+## License
+
+[MIT](LICENSE) - use, copy, modify, and redistribute freely (including in your own mods or tools),
+as long as you keep the copyright and license notice (attribution).
+
+## Disclaimer
+
+A fan-made, unofficial utility. Not affiliated with or endorsed by the makers of Wall $treet
+Raider. It only reads the running game and writes spreadsheets; it changes nothing in the game.
