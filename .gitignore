@@ -4,6 +4,3 @@ out/
 WSR_Statements/
 *.xlsx
 *.csv
-build/
-dist/
-*.spec

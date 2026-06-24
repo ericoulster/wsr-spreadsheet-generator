@@ -59,9 +59,7 @@ def _find_runtime():
 
 
 def _program_dir():
-    """Folder the program lives in - next to the .exe when frozen, else next to this script."""
-    if getattr(sys, "frozen", False):  # PyInstaller one-file build
-        return pathlib.Path(sys.executable).resolve().parent
+    """Folder this script lives in (used for the default output folder)."""
     return pathlib.Path(__file__).resolve().parent
 
 
